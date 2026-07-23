@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+*.session
+*.session-journal
+
+# Node
+node_modules/
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Build
+*.fpk
+
+# Runtime
+*.log
+*.pid
+*.sock
+*.db
+*.db-wal
+*.db-shm
+
+# Env
+.env
+.env.*
+
+# Local data
+.data/
+
+# Cursor
+.cursor/

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+LOG_FILE="${TRIM_PKGVAR}/tgmedia.log"
+VENV_DIR="${TRIM_PKGVAR}/venv"
+
+export PATH=/var/apps/python312/target/bin:$PATH
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Upgrade callback: reinstalling dependencies (v${wizard_version:-unknown})" >> "${LOG_FILE}"
+
+source "${VENV_DIR}/bin/activate"
+pip install -r "${TRIM_APPDEST}/server/requirements.txt" --quiet --upgrade >> "${LOG_FILE}" 2>&1
+deactivate
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Upgrade callback completed" >> "${LOG_FILE}"
+exit 0

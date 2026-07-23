@@ -1,0 +1,12 @@
+[project]
+name = "tgmedia"
+version = "1.0.1"
+description = "Telegram 媒体实时下载监控"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]

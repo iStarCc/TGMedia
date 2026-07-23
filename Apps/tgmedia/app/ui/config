@@ -1,0 +1,14 @@
+{
+    ".url": {
+        "tgmedia.Application": {
+            "title": "TGMedia",
+            "icon": "images/icon_{0}.png",
+            "type": "iframe",
+            "protocol": "",
+            "gatewaySocket": "tgmedia.sock",
+            "gatewayPrefix": "/app/tgmedia",
+            "url": "/app/tgmedia",
+            "allUsers": false
+        }
+    }
+}

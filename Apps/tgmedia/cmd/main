@@ -1,0 +1,126 @@
+#!/bin/bash
+
+LOG_FILE="${TRIM_PKGVAR}/tgmedia.log"
+PID_FILE="${TRIM_PKGVAR}/tgmedia.pid"
+SOCK_FILE="${TRIM_APPDEST}/tgmedia.sock"
+
+export PATH=/var/apps/python312/target/bin:$PATH
+
+DATA_DIR="${TRIM_DATA_SHARE_PATHS%%:*}"
+VENV_DIR="${TRIM_PKGVAR}/venv"
+
+CMD="python3 -m uvicorn app.main:app --uds ${SOCK_FILE} --log-level info"
+
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}"
+}
+
+ensure_venv() {
+    if [ ! -d "${VENV_DIR}" ]; then
+        log_msg "Creating virtual environment..."
+        python3 -m venv "${VENV_DIR}" >> "${LOG_FILE}" 2>&1
+        source "${VENV_DIR}/bin/activate"
+        pip install -r "${TRIM_APPDEST}/server/requirements.txt" --quiet >> "${LOG_FILE}" 2>&1
+        deactivate
+    fi
+}
+
+start_process() {
+    if status_check; then
+        return 0
+    fi
+
+    ensure_venv
+
+    log_msg "Starting TGMedia..."
+    source "${VENV_DIR}/bin/activate"
+
+    export TGMEDIA_DATA_DIR="${DATA_DIR}"
+    export TGMEDIA_VAR_DIR="${TRIM_PKGVAR}"
+    export TGMEDIA_ETC_DIR="${TRIM_PKGETC}"
+    export TGMEDIA_SOCK="${SOCK_FILE}"
+    export TGMEDIA_ROOT_PATH="/app/tgmedia"
+
+    if [ -f "${TRIM_PKGETC}/tgmedia.conf" ]; then
+        source "${TRIM_PKGETC}/tgmedia.conf"
+    fi
+
+    cd "${TRIM_APPDEST}/server"
+    bash -c "${CMD}" >> "${LOG_FILE}" 2>&1 &
+    printf "%s" "$!" > "${PID_FILE}"
+
+    deactivate
+    log_msg "Started with PID $(cat ${PID_FILE})"
+    return 0
+}
+
+stop_process() {
+    log_msg "Stopping TGMedia..."
+
+    if [ -r "${PID_FILE}" ]; then
+        pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+
+        if ! check_process "${pid}"; then
+            rm -f "${PID_FILE}"
+            rm -f "${SOCK_FILE}"
+            return 0
+        fi
+
+        kill -TERM "${pid}" >> "${LOG_FILE}" 2>&1
+
+        local count=0
+        while check_process "${pid}" && [ $count -lt 15 ]; do
+            sleep 1
+            count=$((count + 1))
+            log_msg "Waiting for shutdown... (${count}s/15s)"
+        done
+
+        if check_process "${pid}"; then
+            log_msg "Force killing PID ${pid}..."
+            kill -KILL "${pid}" 2>/dev/null
+            sleep 1
+        fi
+
+        rm -f "${PID_FILE}"
+        rm -f "${SOCK_FILE}"
+        log_msg "Stopped."
+    fi
+
+    return 0
+}
+
+check_process() {
+    local pid=$1
+    kill -0 "${pid}" 2>/dev/null
+}
+
+status_check() {
+    if [ -f "${PID_FILE}" ]; then
+        pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+        if check_process "${pid}"; then
+            return 0
+        else
+            rm -f "${PID_FILE}"
+        fi
+    fi
+    return 1
+}
+
+case $1 in
+start)
+    start_process
+    ;;
+stop)
+    stop_process
+    ;;
+status)
+    if status_check; then
+        exit 0
+    else
+        exit 3
+    fi
+    ;;
+*)
+    exit 1
+    ;;
+esac
