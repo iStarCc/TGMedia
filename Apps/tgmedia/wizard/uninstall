@@ -1,0 +1,33 @@
+[
+    {
+        "stepTitle": "确认卸载",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "您即将卸载 TGMedia。已下载的媒体文件位于共享目录中，不会受卸载影响。"
+            },
+            {
+                "type": "radio",
+                "field": "wizard_data_action",
+                "label": "应用数据处理",
+                "initValue": "keep",
+                "options": [
+                    {
+                        "label": "保留数据（推荐）— Telegram 登录状态、任务记录将被保留，重装后可恢复",
+                        "value": "keep"
+                    },
+                    {
+                        "label": "删除所有数据 — Telegram 登录状态、下载记录将被永久删除",
+                        "value": "delete"
+                    }
+                ],
+                "rules": [
+                    {
+                        "required": true,
+                        "message": "请选择数据处理方式"
+                    }
+                ]
+            }
+        ]
+    }
+]

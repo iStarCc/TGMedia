@@ -1,0 +1,17 @@
+{
+  "version": "1.0.2",
+  "repository": "iStarCc/TGMedia",
+  "branch": "main",
+  "changelog": [
+    {
+      "version": "1.0.2",
+      "date": "2026-07-23",
+      "items": [
+        { "type": "新功能", "text": "Telegram 频道媒体订阅、自动下载与任务队列" },
+        { "type": "新功能", "text": "跨频道搜索、批量下载与媒体库管理" },
+        { "type": "新功能", "text": "多账户管理、频道过滤与自定义存储路径" },
+        { "type": "新功能", "text": "仪表盘统计、实时进度与 WebSocket 推送" }
+      ]
+    }
+  ]
+}

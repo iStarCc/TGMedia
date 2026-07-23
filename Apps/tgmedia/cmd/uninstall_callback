@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [ "${wizard_data_action}" = "delete" ]; then
+    rm -rf "${TRIM_PKGVAR}"
+    rm -rf "${TRIM_PKGETC}"
+fi
+
+exit 0

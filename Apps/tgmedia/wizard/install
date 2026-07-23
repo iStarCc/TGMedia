@@ -1,0 +1,68 @@
+[
+    {
+        "stepTitle": "存储设置",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "安装时系统会要求选择应用数据共享目录。下方「下载保存目录」留空时，将使用该共享目录作为下载保存位置。"
+            },
+            {
+                "type": "text",
+                "field": "wizard_download_path",
+                "label": "下载保存目录",
+                "initValue": "",
+                "rules": [
+                    {
+                        "pattern": "^$|^/[^\\0]+$",
+                        "message": "请输入以 / 开头的绝对路径，或留空使用默认目录"
+                    }
+                ]
+            },
+            {
+                "type": "switch",
+                "field": "wizard_download_by_channel",
+                "label": "按订阅频道创建目录",
+                "initValue": "false"
+            },
+            {
+                "type": "switch",
+                "field": "wizard_download_by_media_type",
+                "label": "按媒体类型创建目录",
+                "initValue": "false"
+            }
+        ]
+    },
+    {
+        "stepTitle": "下载设置",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "安装完成后，请在应用设置中添加 Telegram 账号并配置订阅源。"
+            },
+            {
+                "type": "select",
+                "field": "wizard_max_concurrent",
+                "label": "最大同时下载数",
+                "initValue": "3",
+                "options": [
+                    {
+                        "label": "1 个 (低负载)",
+                        "value": "1"
+                    },
+                    {
+                        "label": "3 个 (推荐)",
+                        "value": "3"
+                    },
+                    {
+                        "label": "5 个 (高速)",
+                        "value": "5"
+                    },
+                    {
+                        "label": "10 个 (高性能设备)",
+                        "value": "10"
+                    }
+                ]
+            }
+        ]
+    }
+]

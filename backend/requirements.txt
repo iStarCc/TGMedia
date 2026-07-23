@@ -1,0 +1,8 @@
+fastapi>=0.115
+uvicorn[standard]>=0.34
+pytdbot[tdjson]>=0.10
+aiosqlite>=0.21
+aiofiles>=24.1
+redis[hiredis]>=5.2
+pydantic>=2.10
+pydantic-settings>=2.7
