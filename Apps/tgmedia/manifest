@@ -1,5 +1,5 @@
 appname=tgmedia
-version=1.0.2
+version=1.0.3
 display_name=TGMedia
 desc=Telegram 媒体实时下载监控，支持频道订阅、自动下载、实时进度追踪
 platform=all

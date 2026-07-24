@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { apiFetch } from "@/utils/api";
+import { readApiError } from "@/utils/apiError";
 
 export interface Channel {
   id: number;
@@ -14,6 +15,8 @@ export interface Channel {
   max_file_size: number;
   allowed_extensions: string;
   download_path: string;
+  download_by_channel: number;
+  download_by_media_type: number;
   sync_limit: number;
   created_at: string;
   updated_at: string;
@@ -41,23 +44,22 @@ export const useChannelsStore = defineStore("channels", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ link, account_id: accountId }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "添加失败");
-    }
+    if (!res.ok) throw await readApiError(res);
     const channel = await res.json();
     channels.value.unshift(channel);
     return channel;
   }
 
   async function deleteChannel(id: number) {
-    await apiFetch(`/api/channels/${id}`, { method: "DELETE" });
+    const res = await apiFetch(`/api/channels/${id}`, { method: "DELETE" });
+    if (!res.ok) throw await readApiError(res);
     channels.value = channels.value.filter((c) => c.id !== id);
   }
 
   async function syncChannel(id: number) {
     const res = await apiFetch(`/api/channels/${id}/sync`, { method: "POST" });
-    if (res.ok) return await res.json();
+    if (!res.ok) throw await readApiError(res);
+    return await res.json();
   }
 
   async function downloadMessages(channelId: number, messageIds: number[], force = false) {
@@ -66,15 +68,17 @@ export const useChannelsStore = defineStore("channels", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message_ids: messageIds, force }),
     });
-    if (res.ok) return await res.json();
+    if (!res.ok) throw await readApiError(res);
+    return await res.json();
   }
 
   async function updateChannel(id: number, data: Partial<Channel>) {
-    await apiFetch(`/api/channels/${id}`, {
+    const res = await apiFetch(`/api/channels/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    if (!res.ok) throw await readApiError(res);
     const ch = channels.value.find((c) => c.id === id);
     if (ch) Object.assign(ch, data);
   }

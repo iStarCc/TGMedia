@@ -1,8 +1,17 @@
 {
-  "version": "1.0.2",
+  "version": "1.0.3",
   "repository": "iStarCc/TGMedia",
   "branch": "main",
   "changelog": [
+    {
+      "version": "1.0.3",
+      "date": "2026-07-24",
+      "items": [
+        { "type": "新功能", "text": "统一的后端错误弹窗，下载失败不再跳转显示原始 JSON" },
+        { "type": "新功能", "text": "频道单独配置支持按频道名称、媒体类型创建子目录" },
+        { "type": "优化", "text": "媒体、任务、频道、设置等页面 API 错误统一提示" }
+      ]
+    },
     {
       "version": "1.0.2",
       "date": "2026-07-23",

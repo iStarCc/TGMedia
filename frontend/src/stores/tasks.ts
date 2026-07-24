@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useWebSocket } from "@/composables/useWebSocket";
 import { useStatsStore } from "@/stores/stats";
 import { apiFetch } from "@/utils/api";
+import { readApiError } from "@/utils/apiError";
 
 export interface Task {
   id: string;
@@ -79,11 +80,13 @@ export const useTasksStore = defineStore("tasks", () => {
   }
 
   async function pauseTask(taskId: string) {
-    await apiFetch(`/api/tasks/${taskId}/pause`, { method: "POST" });
+    const res = await apiFetch(`/api/tasks/${taskId}/pause`, { method: "POST" });
+    if (!res.ok) throw await readApiError(res);
   }
 
   async function resumeTask(taskId: string) {
-    await apiFetch(`/api/tasks/${taskId}/resume`, { method: "POST" });
+    const res = await apiFetch(`/api/tasks/${taskId}/resume`, { method: "POST" });
+    if (!res.ok) throw await readApiError(res);
     await fetchTasks(lastFetchParams);
   }
 
@@ -91,23 +94,26 @@ export const useTasksStore = defineStore("tasks", () => {
     const statsStore = useStatsStore();
     const task = tasks.value.find((t) => t.id === taskId);
     const qs = deleteFile ? "?delete_file=true" : "";
-    await apiFetch(`/api/tasks/${taskId}${qs}`, { method: "DELETE" });
+    const res = await apiFetch(`/api/tasks/${taskId}${qs}`, { method: "DELETE" });
+    if (!res.ok) throw await readApiError(res);
     tasks.value = tasks.value.filter((t) => t.id !== taskId);
     total.value--;
     if (task) statsStore.adjustTaskCount(task.status, -1);
   }
 
   async function retryTask(taskId: string) {
-    await apiFetch(`/api/tasks/${taskId}/retry`, { method: "POST" });
+    const res = await apiFetch(`/api/tasks/${taskId}/retry`, { method: "POST" });
+    if (!res.ok) throw await readApiError(res);
     await fetchTasks(lastFetchParams);
   }
 
   async function batchPause(taskIds: string[]) {
-    await apiFetch("/api/tasks/batch/pause", {
+    const res = await apiFetch("/api/tasks/batch/pause", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(taskIds),
     });
+    if (!res.ok) throw await readApiError(res);
     for (const id of taskIds) {
       const t = tasks.value.find((t) => t.id === id);
       if (t) t.status = "paused";
@@ -117,11 +123,12 @@ export const useTasksStore = defineStore("tasks", () => {
   async function batchDelete(taskIds: string[], deleteFile = false) {
     const statsStore = useStatsStore();
     const removed = tasks.value.filter((t) => taskIds.includes(t.id));
-    await apiFetch("/api/tasks/batch/delete", {
+    const res = await apiFetch("/api/tasks/batch/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ task_ids: taskIds, delete_file: deleteFile }),
     });
+    if (!res.ok) throw await readApiError(res);
     tasks.value = tasks.value.filter((t) => !taskIds.includes(t.id));
     total.value -= taskIds.length;
     for (const task of removed) {
@@ -130,11 +137,12 @@ export const useTasksStore = defineStore("tasks", () => {
   }
 
   async function batchRetry(taskIds: string[]) {
-    await apiFetch("/api/tasks/batch/retry", {
+    const res = await apiFetch("/api/tasks/batch/retry", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(taskIds),
     });
+    if (!res.ok) throw await readApiError(res);
     await fetchTasks(lastFetchParams);
   }
 

@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS channels (
     max_file_size INTEGER DEFAULT 0,
     allowed_extensions TEXT DEFAULT '',
     download_path TEXT DEFAULT '',
+    download_by_channel INTEGER DEFAULT 0,
+    download_by_media_type INTEGER DEFAULT 0,
     sync_limit INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
@@ -79,6 +81,8 @@ CREATE INDEX IF NOT EXISTS idx_channels_account ON channels(account_id);
 _MIGRATIONS = [
     ("channels", "allowed_extensions", "TEXT DEFAULT ''"),
     ("channels", "download_path", "TEXT DEFAULT ''"),
+    ("channels", "download_by_channel", "INTEGER DEFAULT 0"),
+    ("channels", "download_by_media_type", "INTEGER DEFAULT 0"),
     ("channels", "sync_limit", "INTEGER DEFAULT 0"),
     ("accounts", "api_id", "INTEGER NOT NULL DEFAULT 0"),
     ("accounts", "api_hash", "TEXT NOT NULL DEFAULT ''"),

@@ -2,10 +2,12 @@
 import MIcon from "@/components/common/MIcon.vue";
 import { PhGithubLogo } from "@phosphor-icons/vue";
 import { storeToRefs } from "pinia";
+import { useApiError } from "@/composables/useApiError";
 import { useVersionStore } from "@/stores/version";
 
 const baseUrl = import.meta.env.BASE_URL;
 const versionStore = useVersionStore();
+const { showError } = useApiError();
 const { hasUpdate, latest, current, remoteUrl, checkError, changelog, loading } = storeToRefs(versionStore);
 
 const tagStyles: Record<string, string> = {
@@ -115,7 +117,7 @@ const metaCards = [
         </div>
         <button
           class="text-xs text-text-muted hover:text-primary cursor-pointer transition-colors"
-          @click="versionStore.refresh()"
+          @click="versionStore.refreshWithDialog(showError)"
         >
           检查更新
         </button>

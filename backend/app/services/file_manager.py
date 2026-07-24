@@ -125,7 +125,7 @@ async def resolve_download_dir(channel_id: int | None, media_type: str) -> Path:
     if channel_id:
         db = await get_db()
         rows = await db.execute_fetchall(
-            "SELECT title, download_path FROM channels WHERE id=?",
+            "SELECT title, download_path, download_by_channel, download_by_media_type FROM channels WHERE id=?",
             (channel_id,),
         )
         if rows:
@@ -134,12 +134,32 @@ async def resolve_download_dir(channel_id: int | None, media_type: str) -> Path:
             if ch_path:
                 base = Path(ch_path)
                 base.mkdir(parents=True, exist_ok=True)
+            ch_by_channel = rows[0]["download_by_channel"] or 0
+            if ch_by_channel == 1:
+                use_channel_dir = True
+            elif ch_by_channel == 2:
+                use_channel_dir = False
+            else:
+                use_channel_dir = settings.download_by_channel
+            ch_by_media = rows[0]["download_by_media_type"] or 0
+            if ch_by_media == 1:
+                use_media_dir = True
+            elif ch_by_media == 2:
+                use_media_dir = False
+            else:
+                use_media_dir = settings.download_by_media_type
+        else:
+            use_channel_dir = settings.download_by_channel
+            use_media_dir = settings.download_by_media_type
+    else:
+        use_channel_dir = settings.download_by_channel
+        use_media_dir = settings.download_by_media_type
 
-    if settings.download_by_channel and channel_id:
+    if use_channel_dir and channel_id:
         folder = sanitize_dirname(channel_title or f"channel_{channel_id}")
         base = base / folder
 
-    if settings.download_by_media_type:
+    if use_media_dir:
         sub_dir = base / media_type
         sub_dir.mkdir(parents=True, exist_ok=True)
         return sub_dir

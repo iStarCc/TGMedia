@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { apiFetch } from "@/utils/api";
+import { readApiError } from "@/utils/apiError";
 
 export interface Account {
   id: number;
@@ -36,17 +37,15 @@ export const useAccountsStore = defineStore("accounts", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phone, api_id: apiId, api_hash: apiHash }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "创建失败");
-    }
+    if (!res.ok) throw await readApiError(res);
     const data = await res.json();
     await fetchAccounts();
     return data;
   }
 
   async function deleteAccount(id: number) {
-    await apiFetch(`/api/auth/accounts/${id}`, { method: "DELETE" });
+    const res = await apiFetch(`/api/auth/accounts/${id}`, { method: "DELETE" });
+    if (!res.ok) throw await readApiError(res);
     accounts.value = accounts.value.filter((a) => a.id !== id);
   }
 
@@ -56,10 +55,7 @@ export const useAccountsStore = defineStore("accounts", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ account_id: accountId, phone }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "发送失败");
-    }
+    if (!res.ok) throw await readApiError(res);
     return (await res.json()).phone_code_hash as string;
   }
 
@@ -80,10 +76,7 @@ export const useAccountsStore = defineStore("accounts", () => {
       }),
     });
     if (res.status === 403) return { needs2FA: true };
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "验证失败");
-    }
+    if (!res.ok) throw await readApiError(res);
     await fetchAccounts();
     return { needs2FA: false, user: await res.json() };
   }
@@ -94,10 +87,7 @@ export const useAccountsStore = defineStore("accounts", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ account_id: accountId, password }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "验证失败");
-    }
+    if (!res.ok) throw await readApiError(res);
     await fetchAccounts();
     return await res.json();
   }

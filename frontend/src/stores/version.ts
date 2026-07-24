@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { onMounted, ref } from "vue";
 import { APP_VERSION } from "@/constants/app";
 import { apiFetch } from "@/utils/api";
+import { readApiError } from "@/utils/apiError";
 
 export interface ChangelogItem {
   type: string;
@@ -49,7 +50,7 @@ export const useVersionStore = defineStore("version", () => {
     }
   }
 
-  async function checkUpdate() {
+  async function checkUpdate(): Promise<Error | null> {
     try {
       const res = await apiFetch("/api/version/check");
       if (res.ok) {
@@ -59,12 +60,14 @@ export const useVersionStore = defineStore("version", () => {
         current.value = data.current ?? current.value;
         if (data.remote_url) remoteUrl.value = data.remote_url;
         checkError.value = data.check_error || "";
-      } else {
-        const err = await res.json().catch(() => null);
-        checkError.value = (err as { detail?: string })?.detail || "检查更新失败";
+        return null;
       }
+      const err = await readApiError(res);
+      checkError.value = err.message;
+      return err;
     } catch {
       checkError.value = "无法检查更新";
+      return new Error(checkError.value);
     }
   }
 
@@ -72,6 +75,13 @@ export const useVersionStore = defineStore("version", () => {
     checkError.value = "";
     await loadVersionInfo();
     await checkUpdate();
+  }
+
+  async function refreshWithDialog(showError: (err: unknown, fallback?: string) => void) {
+    checkError.value = "";
+    await loadVersionInfo();
+    const err = await checkUpdate();
+    if (err) showError(err, "检查更新失败");
   }
 
   onMounted(refresh);
@@ -87,5 +97,6 @@ export const useVersionStore = defineStore("version", () => {
     loadVersionInfo,
     checkUpdate,
     refresh,
+    refreshWithDialog,
   };
 });

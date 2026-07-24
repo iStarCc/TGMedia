@@ -1,14 +1,31 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, computed, nextTick } from "vue";
+import { useApiError } from "@/composables/useApiError";
 import MIcon from "@/components/common/MIcon.vue";
 import { useChannelsStore, type Channel } from "@/stores/channels";
 import { useAccountsStore } from "@/stores/accounts";
 import { apiFetch, apiUrl } from "@/utils/api";
+import { readApiError } from "@/utils/apiError";
 import { useStatsStore } from "@/stores/stats";
 
 interface AppSettings {
   allowed_extensions: string[];
+  download_by_channel?: boolean;
+  download_by_media_type?: boolean;
+  download_path?: string;
+  data_dir?: string;
   [key: string]: unknown;
+}
+
+function resolveChannelToggle(channelValue: number, globalValue: boolean): boolean {
+  if (channelValue === 1) return true;
+  if (channelValue === 2) return false;
+  return globalValue;
+}
+
+function channelToggleOverride(toggle: boolean, globalValue: boolean): number {
+  if (toggle === globalValue) return 0;
+  return toggle ? 1 : 2;
 }
 
 interface SearchResult {
@@ -26,6 +43,7 @@ interface SearchResult {
 const channelsStore = useChannelsStore();
 const accountsStore = useAccountsStore();
 const statsStore = useStatsStore();
+const { showError, withErrorHandling } = useApiError();
 const globalSettings = ref<AppSettings>({ allowed_extensions: [] });
 
 const showAddModal = ref(false);
@@ -40,11 +58,12 @@ const cfgExtUseGlobal = ref(true);
 const cfgNewExt = ref("");
 const cfgDownloadPath = ref("");
 const cfgPathUseGlobal = ref(true);
+const cfgDownloadByChannel = ref(false);
+const cfgDownloadByMediaType = ref(false);
 const cfgSyncLimit = ref(0);
 const cfgSyncUseGlobal = ref(true);
 const newLink = ref("");
 const selectedAccountId = ref<number | null>(null);
-const addError = ref("");
 const adding = ref(false);
 const syncing = ref<number | null>(null);
 
@@ -107,23 +126,24 @@ const filteredChannels = computed(() => {
 async function handleAdd() {
   if (!newLink.value.trim() || !selectedAccountId.value) return;
   adding.value = true;
-  addError.value = "";
   try {
     await channelsStore.addChannel(newLink.value.trim(), selectedAccountId.value);
     newLink.value = "";
     showAddModal.value = false;
     photoErrors.value = new Set();
   } catch (e: unknown) {
-    addError.value = e instanceof Error ? e.message : "添加失败";
+    showError(e, "添加失败");
   } finally {
     adding.value = false;
   }
 }
 
 async function toggleAutoDownload(channel: { id: number; auto_download: boolean }) {
-  await channelsStore.updateChannel(channel.id, {
-    auto_download: !channel.auto_download,
-  });
+  await withErrorHandling(() =>
+    channelsStore.updateChannel(channel.id, {
+      auto_download: !channel.auto_download,
+    }),
+  );
 }
 
 function bytesToDisplay(bytes: number): { value: number; unit: 'MB' | 'GB' } {
@@ -151,6 +171,14 @@ function openConfig(channel: Channel) {
   }
   cfgDownloadPath.value = channel.download_path || "";
   cfgPathUseGlobal.value = !channel.download_path;
+  cfgDownloadByChannel.value = resolveChannelToggle(
+    channel.download_by_channel,
+    !!globalSettings.value.download_by_channel,
+  );
+  cfgDownloadByMediaType.value = resolveChannelToggle(
+    channel.download_by_media_type,
+    !!globalSettings.value.download_by_media_type,
+  );
   cfgSyncLimit.value = channel.sync_limit || 0;
   cfgSyncUseGlobal.value = !channel.sync_limit;
 
@@ -185,26 +213,36 @@ function removeCfgExt(ext: string) {
 async function saveConfig() {
   if (!configChannel.value) return;
   const maxSize = cfgMaxSizeInput.value > 0 ? displayToBytes(cfgMaxSizeInput.value, cfgMaxSizeUnit.value) : 0;
-  await channelsStore.updateChannel(configChannel.value.id, {
-    filter_type: cfgFilterType.value,
-    max_file_size: maxSize,
-    allowed_extensions: cfgExtUseGlobal.value ? "" : JSON.stringify(cfgExtensions.value),
-    download_path: cfgPathUseGlobal.value ? "" : cfgDownloadPath.value,
-    sync_limit: cfgSyncUseGlobal.value ? 0 : cfgSyncLimit.value,
-  } as Partial<Channel>);
-  showConfigModal.value = false;
+  const ok = await withErrorHandling(async () => {
+    await channelsStore.updateChannel(configChannel.value!.id, {
+      filter_type: cfgFilterType.value,
+      max_file_size: maxSize,
+      allowed_extensions: cfgExtUseGlobal.value ? "" : JSON.stringify(cfgExtensions.value),
+      download_path: cfgPathUseGlobal.value ? "" : cfgDownloadPath.value,
+      download_by_channel: channelToggleOverride(
+        cfgDownloadByChannel.value,
+        !!globalSettings.value.download_by_channel,
+      ),
+      download_by_media_type: channelToggleOverride(
+        cfgDownloadByMediaType.value,
+        !!globalSettings.value.download_by_media_type,
+      ),
+      sync_limit: cfgSyncUseGlobal.value ? 0 : cfgSyncLimit.value,
+    } as Partial<Channel>);
+  });
+  if (ok !== null) showConfigModal.value = false;
 }
 
 async function handleSync(channel: Channel) {
   syncing.value = channel.id;
   try {
-    const data = await channelsStore.syncChannel(channel.id);
-    if (data && data.messages) {
+    const data = await withErrorHandling(() => channelsStore.syncChannel(channel.id));
+    if (data?.messages) {
       syncMessages.value = data.messages;
       syncChannelId.value = channel.id;
       syncChannelTitle.value = channel.title;
       selectedMsgIds.value = new Set(
-        data.messages.filter((m: SyncMessage) => !m.downloaded).map((m: SyncMessage) => m.message_id)
+        data.messages.filter((m: SyncMessage) => !m.downloaded).map((m: SyncMessage) => m.message_id),
       );
       showSyncModal.value = true;
     }
@@ -276,10 +314,13 @@ async function doDownload(msgIds: number[], force: boolean) {
   downloading.value = true;
   downloadResult.value = "";
   try {
-    const res = await channelsStore.downloadMessages(syncChannelId.value, msgIds, force);
+    const res = await withErrorHandling(() =>
+      channelsStore.downloadMessages(syncChannelId.value!, msgIds, force),
+    );
+    if (res === null) return;
     showSyncModal.value = false;
-    downloadResult.value = `已添加 ${res?.submitted ?? 0} 个下载任务` +
-      (res?.skipped > 0 ? `，跳过 ${res.skipped} 个` : "");
+    downloadResult.value = `已添加 ${res.submitted ?? 0} 个下载任务` +
+      (res.skipped > 0 ? `，跳过 ${res.skipped} 个` : "");
     showResultModal.value = true;
   } finally {
     downloading.value = false;
@@ -303,7 +344,6 @@ const filterTypeOptions = [
 
 function openAddModal() {
   showAddModal.value = true;
-  addError.value = "";
   const authed = accountsStore.accounts.filter(a => a.authorized);
   if (authed.length > 0 && !selectedAccountId.value) {
     selectedAccountId.value = authed[0].id;
@@ -392,7 +432,10 @@ async function doSearch(append = false) {
         cursors: append ? searchCursors.value : {},
       }),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      showError(await readApiError(res), "搜索失败");
+      return;
+    }
     const data = await res.json();
 
     if (append) {
@@ -513,9 +556,12 @@ async function doSearchDownload(items: SearchResult[], force: boolean) {
 
   try {
     for (const [chId, msgIds] of byChannel) {
-      const res = await channelsStore.downloadMessages(chId, msgIds, force);
-      totalSubmitted += res?.submitted ?? 0;
-      totalSkipped += res?.skipped ?? 0;
+      const res = await withErrorHandling(() =>
+        channelsStore.downloadMessages(chId, msgIds, force),
+      );
+      if (res === null) return;
+      totalSubmitted += res.submitted ?? 0;
+      totalSkipped += res.skipped ?? 0;
     }
     showSearchModal.value = false;
     cleanupSearchObserver();
@@ -530,6 +576,13 @@ async function doSearchDownload(items: SearchResult[], force: boolean) {
 async function fetchGlobalSettings() {
   const res = await apiFetch("/api/settings");
   if (res.ok) globalSettings.value = await res.json();
+}
+
+async function handleDeleteChannel() {
+  if (confirmDeleteId.value === null) return;
+  const id = confirmDeleteId.value;
+  confirmDeleteId.value = null;
+  await withErrorHandling(() => channelsStore.deleteChannel(id));
 }
 
 onMounted(() => {
@@ -715,8 +768,6 @@ onUnmounted(cleanupSearchObserver);
               />
             </div>
           </div>
-
-          <p v-if="addError" class="mt-2 text-xs text-danger">{{ addError }}</p>
 
           <div class="mt-4 flex justify-end gap-2">
             <button
@@ -922,6 +973,42 @@ onUnmounted(cleanupSearchObserver);
                 </div>
               </div>
               <p v-else class="text-xs text-text-muted">{{ (globalSettings as Record<string,unknown>).sync_limit || 100 }} 条</p>
+            </div>
+
+            <!-- 按频道创建子目录 -->
+            <div class="flex items-center justify-between rounded-lg border border-surface-border bg-surface px-3 py-2.5">
+              <div>
+                <p class="text-xs font-medium text-text-secondary">按频道创建子目录</p>
+                <p class="mt-0.5 text-[11px] text-text-muted">在保存目录下按频道名称分子文件夹</p>
+              </div>
+              <button
+                class="relative h-5 w-9 shrink-0 rounded-full transition-colors cursor-pointer"
+                :class="cfgDownloadByChannel ? 'bg-primary' : 'bg-surface-border'"
+                @click="cfgDownloadByChannel = !cfgDownloadByChannel"
+              >
+                <span
+                  class="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform"
+                  :class="cfgDownloadByChannel ? 'translate-x-4' : ''"
+                />
+              </button>
+            </div>
+
+            <!-- 按媒体类型创建目录 -->
+            <div class="flex items-center justify-between rounded-lg border border-surface-border bg-surface px-3 py-2.5">
+              <div>
+                <p class="text-xs font-medium text-text-secondary">按媒体类型创建目录</p>
+                <p class="mt-0.5 text-[11px] text-text-muted">按 photo / video / audio / document 分子文件夹</p>
+              </div>
+              <button
+                class="relative h-5 w-9 shrink-0 rounded-full transition-colors cursor-pointer"
+                :class="cfgDownloadByMediaType ? 'bg-primary' : 'bg-surface-border'"
+                @click="cfgDownloadByMediaType = !cfgDownloadByMediaType"
+              >
+                <span
+                  class="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform"
+                  :class="cfgDownloadByMediaType ? 'translate-x-4' : ''"
+                />
+              </button>
             </div>
           </div>
 
@@ -1161,7 +1248,7 @@ onUnmounted(cleanupSearchObserver);
             </button>
             <button
               class="rounded-lg bg-danger px-3 py-1.5 text-sm text-white cursor-pointer hover:bg-danger/80 transition-colors"
-              @click="channelsStore.deleteChannel(confirmDeleteId!); confirmDeleteId = null"
+              @click="handleDeleteChannel"
             >
               删除
             </button>

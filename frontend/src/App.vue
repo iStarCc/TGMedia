@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import AppHeader from "@/components/layout/AppHeader.vue";
+import ErrorDialog from "@/components/common/ErrorDialog.vue";
 </script>
 
 <template>
@@ -13,4 +14,5 @@ import AppHeader from "@/components/layout/AppHeader.vue";
       </main>
     </div>
   </div>
+  <ErrorDialog />
 </template>

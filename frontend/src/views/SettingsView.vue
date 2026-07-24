@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
+import { useApiError } from "@/composables/useApiError";
 import MIcon from "@/components/common/MIcon.vue";
 import { useAccountsStore, type Account } from "@/stores/accounts";
 import { apiFetch, apiUrl } from "@/utils/api";
+import { readApiError } from "@/utils/apiError";
 import CountryCodeSelect from "@/components/common/CountryCodeSelect.vue";
 import AboutPanel from "@/components/settings/AboutPanel.vue";
 import { useVersionStore } from "@/stores/version";
@@ -28,6 +30,7 @@ const activeTab = ref<Tab>("账户");
 const accountsStore = useAccountsStore();
 const versionStore = useVersionStore();
 const { hasUpdate } = storeToRefs(versionStore);
+const { showError, withErrorHandling } = useApiError();
 
 const appSettings = ref<AppSettings>({
   max_concurrent: 3,
@@ -77,8 +80,8 @@ async function fetchSettings() {
 
 async function saveSettings() {
   saving.value = true;
-  try {
-    await apiFetch("/api/settings", {
+  await withErrorHandling(async () => {
+    const res = await apiFetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -92,9 +95,16 @@ async function saveSettings() {
         sync_days: appSettings.value.sync_days,
       }),
     });
-  } finally {
-    saving.value = false;
-  }
+    if (!res.ok) throw await readApiError(res);
+  });
+  saving.value = false;
+}
+
+async function handleDeleteAccount() {
+  if (confirmDeleteId.value === null) return;
+  const id = confirmDeleteId.value;
+  confirmDeleteId.value = null;
+  await withErrorHandling(() => accountsStore.deleteAccount(id));
 }
 
 function addExtension() {
@@ -656,7 +666,7 @@ onMounted(() => {
             </button>
             <button
               class="rounded-lg bg-danger px-3 py-1.5 text-sm text-white cursor-pointer hover:bg-danger/80 transition-colors"
-              @click="accountsStore.deleteAccount(confirmDeleteId!); confirmDeleteId = null"
+              @click="handleDeleteAccount"
             >
               删除
             </button>

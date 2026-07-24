@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useTasksStore, type Task } from "@/stores/tasks";
 import { useStatsStore } from "@/stores/stats";
+import { useApiError } from "@/composables/useApiError";
 import MIcon from "@/components/common/MIcon.vue";
 import FileIcon from "@/components/common/FileIcon.vue";
 import ProgressBar from "@/components/common/ProgressBar.vue";
@@ -9,6 +10,7 @@ import PaginationBar from "@/components/common/PaginationBar.vue";
 
 const tasksStore = useTasksStore();
 const statsStore = useStatsStore();
+const { withErrorHandling } = useApiError();
 const statusFilter = ref<string>("");
 const searchQuery = ref("");
 const currentPage = ref(1);
@@ -79,10 +81,12 @@ function toggleAll() {
 async function batchAction(action: "pause" | "retry") {
   const ids = [...selectedIds.value];
   if (ids.length === 0) return;
-  if (action === "pause") await tasksStore.batchPause(ids);
-  else if (action === "retry") await tasksStore.batchRetry(ids);
-  selectedIds.value.clear();
-  loadTasks();
+  await withErrorHandling(async () => {
+    if (action === "pause") await tasksStore.batchPause(ids);
+    else await tasksStore.batchRetry(ids);
+    selectedIds.value.clear();
+    loadTasks();
+  });
 }
 
 function progress(task: { downloaded: number; file_size: number }): number {
@@ -142,18 +146,33 @@ function confirmBatchDelete() {
 }
 
 async function executeDelete() {
-  if (deleteBatch.value) {
-    await tasksStore.batchDelete([...selectedIds.value], deleteWithFile.value);
-    selectedIds.value.clear();
-  } else if (deleteTargetId.value) {
-    await tasksStore.deleteTask(deleteTargetId.value, deleteWithFile.value);
-  }
+  const ok = await withErrorHandling(async () => {
+    if (deleteBatch.value) {
+      await tasksStore.batchDelete([...selectedIds.value], deleteWithFile.value);
+      selectedIds.value.clear();
+    } else if (deleteTargetId.value) {
+      await tasksStore.deleteTask(deleteTargetId.value, deleteWithFile.value);
+    }
+  });
+  if (ok === null) return;
   showDeleteModal.value = false;
   deleteTargetId.value = null;
   if (tasksStore.tasks.length === 0 && currentPage.value > 1) {
     currentPage.value -= 1;
   }
   loadTasks();
+}
+
+async function handlePause(taskId: string) {
+  await withErrorHandling(() => tasksStore.pauseTask(taskId));
+}
+
+async function handleResume(taskId: string) {
+  await withErrorHandling(() => tasksStore.resumeTask(taskId));
+}
+
+async function handleRetry(taskId: string) {
+  await withErrorHandling(() => tasksStore.retryTask(taskId));
 }
 
 function loadTasks() {
@@ -363,7 +382,7 @@ const statusOptions = [
               v-if="task.status === 'downloading'"
               class="rounded-md p-1.5 text-text-muted hover:bg-surface-border hover:text-warning cursor-pointer transition-colors"
               title="暂停"
-              @click="tasksStore.pauseTask(task.id)"
+              @click="handlePause(task.id)"
             >
               <MIcon name="pause" :size="16" />
             </button>
@@ -371,7 +390,7 @@ const statusOptions = [
               v-if="task.status === 'paused'"
               class="rounded-md p-1.5 text-text-muted hover:bg-surface-border hover:text-primary cursor-pointer transition-colors"
               title="恢复"
-              @click="tasksStore.resumeTask(task.id)"
+              @click="handleResume(task.id)"
             >
               <MIcon name="play_arrow" :size="16" />
             </button>
@@ -379,7 +398,7 @@ const statusOptions = [
               v-if="['failed', 'completed', 'paused'].includes(task.status)"
               class="rounded-md p-1.5 text-text-muted hover:bg-surface-border hover:text-primary cursor-pointer transition-colors"
               :title="task.status === 'completed' ? '重新下载' : '重试'"
-              @click="tasksStore.retryTask(task.id)"
+              @click="handleRetry(task.id)"
             >
               <MIcon name="replay" :size="16" />
             </button>

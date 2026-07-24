@@ -11,6 +11,8 @@ class ChannelUpdate(BaseModel):
     max_file_size: int | None = None
     allowed_extensions: str | None = None
     download_path: str | None = None
+    download_by_channel: int | None = None
+    download_by_media_type: int | None = None
     sync_limit: int | None = None
 
 
@@ -26,6 +28,8 @@ class ChannelResponse(BaseModel):
     max_file_size: int = 0
     allowed_extensions: str = ""
     download_path: str = ""
+    download_by_channel: int = 0
+    download_by_media_type: int = 0
     sync_limit: int = 0
     created_at: str
     updated_at: str

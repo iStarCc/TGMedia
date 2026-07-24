@@ -2,11 +2,14 @@
 import { computed, onMounted, ref, watch } from "vue";
 import MIcon from "@/components/common/MIcon.vue";
 import { useStatsStore } from "@/stores/stats";
-import { apiFetch, apiUrl } from "@/utils/api";
+import { useApiError } from "@/composables/useApiError";
+import { apiFetch, apiUrl, downloadApiFile } from "@/utils/api";
+import { readApiError } from "@/utils/apiError";
 import FileIcon from "@/components/common/FileIcon.vue";
 import PaginationBar from "@/components/common/PaginationBar.vue";
 
 const statsStore = useStatsStore();
+const { showError, withErrorHandling } = useApiError();
 
 interface MediaFile {
   id: number;
@@ -42,7 +45,6 @@ const textContent = ref("");
 const messageFile = ref<MediaFile | null>(null);
 const messageInfo = ref<MediaMessage | null>(null);
 const messageLoading = ref(false);
-const messageError = ref("");
 let searchTimer: ReturnType<typeof setTimeout>;
 
 const typeOptions = [
@@ -104,18 +106,18 @@ function closePreview() {
 async function openMessageInfo(file: MediaFile) {
   messageFile.value = file;
   messageInfo.value = null;
-  messageError.value = "";
   messageLoading.value = true;
   try {
     const res = await apiFetch(`/api/media/${file.id}/message`);
     if (res.ok) {
       messageInfo.value = await res.json();
     } else {
-      const err = await res.json().catch(() => null);
-      messageError.value = (err as { detail?: string })?.detail || "无法获取消息信息";
+      closeMessageInfo();
+      showError(await readApiError(res), "无法获取消息信息");
     }
   } catch {
-    messageError.value = "网络错误，请稍后重试";
+    closeMessageInfo();
+    showError(new Error("网络错误，请稍后重试"));
   } finally {
     messageLoading.value = false;
   }
@@ -124,7 +126,10 @@ async function openMessageInfo(file: MediaFile) {
 function closeMessageInfo() {
   messageFile.value = null;
   messageInfo.value = null;
-  messageError.value = "";
+}
+
+async function handleDownload(file: MediaFile) {
+  await downloadApiFile(`/api/media/${file.id}/download`, file.filename);
 }
 
 function formatMessageDate(iso: string): string {
@@ -164,13 +169,16 @@ async function fetchMedia() {
 }
 
 async function deleteFile(id: number) {
-  await apiFetch(`/api/media/${id}`, { method: "DELETE" });
-  files.value = files.value.filter((f) => f.id !== id);
-  total.value--;
-  if (files.value.length === 0 && currentPage.value > 1) {
-    currentPage.value -= 1;
-  }
-  fetchMedia();
+  await withErrorHandling(async () => {
+    const res = await apiFetch(`/api/media/${id}`, { method: "DELETE" });
+    if (!res.ok) throw await readApiError(res);
+    files.value = files.value.filter((f) => f.id !== id);
+    total.value--;
+    if (files.value.length === 0 && currentPage.value > 1) {
+      currentPage.value -= 1;
+    }
+    fetchMedia();
+  });
 }
 
 function switchType(type: string) {
@@ -297,13 +305,13 @@ onMounted(fetchMedia);
         >
           <MIcon name="info" :size="16" />
         </button>
-        <a
-          :href="apiUrl(`/api/media/${file.id}/download`)"
+        <button
           class="rounded-md p-1.5 text-text-muted hover:text-primary cursor-pointer transition-colors"
           title="下载"
+          @click="handleDownload(file)"
         >
           <MIcon name="download" :size="16" />
-        </a>
+        </button>
         <button
           class="rounded-md p-1.5 text-text-muted hover:text-danger cursor-pointer transition-colors"
           title="删除"
@@ -336,13 +344,13 @@ onMounted(fetchMedia);
               <p class="text-xs text-text-muted">{{ statsStore.formatBytes(previewFile.file_size) }}</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-              <a
-                :href="apiUrl(`/api/media/${previewFile.id}/download`)"
+              <button
                 class="rounded-md p-1.5 text-text-muted hover:text-primary cursor-pointer transition-colors"
                 title="下载"
+                @click="previewFile && handleDownload(previewFile)"
               >
                 <MIcon name="download" :size="16" />
-              </a>
+              </button>
               <button
                 class="rounded-md p-1.5 text-text-muted hover:text-text-primary cursor-pointer transition-colors"
                 @click="closePreview"
@@ -408,7 +416,6 @@ onMounted(fetchMedia);
 
           <div class="px-5 py-4 text-xs space-y-3 max-h-[60vh] overflow-y-auto">
             <p v-if="messageLoading" class="text-text-muted text-center py-6">加载中...</p>
-            <p v-else-if="messageError" class="text-danger text-center py-6">{{ messageError }}</p>
             <template v-else-if="messageInfo">
               <div v-if="messageInfo.channel_title" class="flex gap-4">
                 <span class="text-text-muted shrink-0 w-16">频道</span>
