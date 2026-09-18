@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Verify version
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          JSON_VERSION=$(python3 -c "import json; print(json.load(open('version.json'))['version'])")
+          if [ "$TAG" != "$JSON_VERSION" ]; then
+            echo "tag v${TAG} 与 version.json (${JSON_VERSION}) 不一致"
+            exit 1
+          fi
+          echo "version=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Download fnpack
+        run: |
+          curl -fsSL -o fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.3-linux-amd64
+          chmod +x fnpack
+
+      - name: Build fpk
+        run: FNPACK_BIN="$PWD/fnpack" bash scripts/build.sh
+
+      - name: Generate release notes
+        run: python3 scripts/render_release_notes.py "${{ steps.version.outputs.version }}" > release-notes.md
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.version.outputs.version }}
+          files: Apps/tgmedia/tgmedia.fpk
+          body_path: release-notes.md

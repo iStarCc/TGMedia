@@ -22,8 +22,14 @@ echo "Version: ${APP_VERSION}"
 
 cp "${ROOT_DIR}/version.json" "${BACKEND_DIR}/version.json"
 cp "${ROOT_DIR}/version.json" "${FRONTEND_DIR}/public/version.json"
-sed -i '' "s/^version=.*/version=${APP_VERSION}/" "${APP_DIR}/manifest"
-sed -i '' "s/<meta name=\"app-version\" content=\"[^\"]*\"/<meta name=\"app-version\" content=\"${APP_VERSION}\"/" "${FRONTEND_DIR}/index.html"
+
+if sed --version >/dev/null 2>&1; then
+    sed -i "s/^version=.*/version=${APP_VERSION}/" "${APP_DIR}/manifest"
+    sed -i "s/<meta name=\"app-version\" content=\"[^\"]*\"/<meta name=\"app-version\" content=\"${APP_VERSION}\"/" "${FRONTEND_DIR}/index.html"
+else
+    sed -i '' "s/^version=.*/version=${APP_VERSION}/" "${APP_DIR}/manifest"
+    sed -i '' "s/<meta name=\"app-version\" content=\"[^\"]*\"/<meta name=\"app-version\" content=\"${APP_VERSION}\"/" "${FRONTEND_DIR}/index.html"
+fi
 
 # 1. 前端构建
 echo "[1/4] Building frontend..."
