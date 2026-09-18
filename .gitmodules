@@ -1,0 +1,3 @@
+[submodule "fnnas-developer"]
+	path = fnnas-developer
+	url = https://github.com/iStarCc/fnnas-developer.git

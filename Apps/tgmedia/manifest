@@ -1,5 +1,5 @@
 appname=tgmedia
-version=1.0.3
+version=1.0.4
 display_name=TGMedia
 desc=Telegram 媒体实时下载监控，支持频道订阅、自动下载、实时进度追踪
 platform=all
@@ -7,4 +7,6 @@ source=thirdparty
 maintainer=kcui
 desktop_uidir=ui
 desktop_applaunchname=tgmedia.Application
-install_dep_apps=python312:redis
+install_dep_apps=python312
+os_min_version=1.1.3100
+ctl_stop=true

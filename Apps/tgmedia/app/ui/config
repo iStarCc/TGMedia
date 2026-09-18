@@ -8,7 +8,7 @@
             "gatewaySocket": "tgmedia.sock",
             "gatewayPrefix": "/app/tgmedia",
             "url": "/app/tgmedia",
-            "allUsers": false
+            "allUsers": true
         }
     }
 }

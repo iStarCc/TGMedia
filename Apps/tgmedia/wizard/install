@@ -19,16 +19,20 @@
                 ]
             },
             {
-                "type": "switch",
+                "type": "radio",
                 "field": "wizard_download_by_channel",
                 "label": "按订阅频道创建目录",
-                "initValue": "false"
-            },
-            {
-                "type": "switch",
-                "field": "wizard_download_by_media_type",
-                "label": "按媒体类型创建目录",
-                "initValue": "false"
+                "initValue": "0",
+                "options": [
+                    {
+                        "label": "关闭",
+                        "value": "0"
+                    },
+                    {
+                        "label": "开启",
+                        "value": "1"
+                    }
+                ]
             }
         ]
     },
@@ -38,6 +42,22 @@
             {
                 "type": "tips",
                 "helpText": "安装完成后，请在应用设置中添加 Telegram 账号并配置订阅源。"
+            },
+            {
+                "type": "radio",
+                "field": "wizard_download_by_media_type",
+                "label": "按媒体类型创建目录",
+                "initValue": "0",
+                "options": [
+                    {
+                        "label": "关闭",
+                        "value": "0"
+                    },
+                    {
+                        "label": "开启",
+                        "value": "1"
+                    }
+                ]
             },
             {
                 "type": "select",

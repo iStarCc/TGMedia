@@ -8,6 +8,7 @@ from app.database import get_db
 from app.services.downloader import download_engine
 from app.services.file_manager import get_filename, get_file_size, get_media_type
 from app.services.telegram import tg_manager
+from app.services.stats_broadcast import broadcast_task_stats
 from app.ws.manager import ws_manager
 
 logger = logging.getLogger(__name__)
@@ -135,17 +136,7 @@ async def start_stats_broadcaster() -> None:
         if not ws_manager.connections:
             continue
         try:
-            db = await get_db()
-            speed_row = await db.execute_fetchall(
-                "SELECT COALESCE(SUM(speed), 0) as s FROM tasks WHERE status='downloading'"
-            )
-            count_row = await db.execute_fetchall(
-                "SELECT COUNT(*) as c FROM tasks WHERE status='downloading'"
-            )
-            await ws_manager.broadcast("stats:update", {
-                "current_speed": speed_row[0]["s"],
-                "downloading": count_row[0]["c"],
-            })
+            await broadcast_task_stats()
         except Exception:
             pass
 

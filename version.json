@@ -1,8 +1,19 @@
 {
-  "version": "1.0.3",
+  "version": "1.0.4",
   "repository": "iStarCc/TGMedia",
   "branch": "main",
   "changelog": [
+    {
+      "version": "1.0.4",
+      "date": "2026-09-18",
+      "items": [
+        { "type": "修复", "text": "修复飞牛安装后 Bad Gateway 及安装阶段长时间卡住的问题" },
+        { "type": "修复", "text": "修复删除任务后侧边栏活跃任务数不立即刷新的问题" },
+        { "type": "修复", "text": "修复安装向导自定义格式开关需多次点击的问题" },
+        { "type": "优化", "text": "订阅源卡片显示用户自定义的媒体格式（如 .mp4, .mkv）" },
+        { "type": "优化", "text": "开发文档改为 fnnas-developer 子模块引用" }
+      ]
+    },
     {
       "version": "1.0.3",
       "date": "2026-07-24",

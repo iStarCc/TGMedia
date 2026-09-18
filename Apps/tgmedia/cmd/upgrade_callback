@@ -2,14 +2,21 @@
 
 LOG_FILE="${TRIM_PKGVAR}/tgmedia.log"
 VENV_DIR="${TRIM_PKGVAR}/venv"
+VENV_PIP="${VENV_DIR}/bin/pip"
 
 export PATH=/var/apps/python312/target/bin:$PATH
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Upgrade callback: reinstalling dependencies (v${wizard_version:-unknown})" >> "${LOG_FILE}"
 
-source "${VENV_DIR}/bin/activate"
-pip install -r "${TRIM_APPDEST}/server/requirements.txt" --quiet --upgrade >> "${LOG_FILE}" 2>&1
-deactivate
+if [ ! -x "${VENV_PIP}" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Upgrade callback skipped: venv not found" >> "${LOG_FILE}"
+    exit 0
+fi
+
+if ! "${VENV_PIP}" install -r "${TRIM_APPDEST}/server/requirements.txt" --upgrade >> "${LOG_FILE}" 2>&1; then
+    echo "Python 依赖升级失败，请查看 ${LOG_FILE}" > "${TRIM_TEMP_LOGFILE}"
+    exit 1
+fi
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Upgrade callback completed" >> "${LOG_FILE}"
 exit 0

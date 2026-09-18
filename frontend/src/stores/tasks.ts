@@ -92,13 +92,12 @@ export const useTasksStore = defineStore("tasks", () => {
 
   async function deleteTask(taskId: string, deleteFile = false) {
     const statsStore = useStatsStore();
-    const task = tasks.value.find((t) => t.id === taskId);
     const qs = deleteFile ? "?delete_file=true" : "";
     const res = await apiFetch(`/api/tasks/${taskId}${qs}`, { method: "DELETE" });
     if (!res.ok) throw await readApiError(res);
     tasks.value = tasks.value.filter((t) => t.id !== taskId);
-    total.value--;
-    if (task) statsStore.adjustTaskCount(task.status, -1);
+    total.value = Math.max(0, total.value - 1);
+    await statsStore.fetchStats();
   }
 
   async function retryTask(taskId: string) {
@@ -122,7 +121,6 @@ export const useTasksStore = defineStore("tasks", () => {
 
   async function batchDelete(taskIds: string[], deleteFile = false) {
     const statsStore = useStatsStore();
-    const removed = tasks.value.filter((t) => taskIds.includes(t.id));
     const res = await apiFetch("/api/tasks/batch/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -130,10 +128,8 @@ export const useTasksStore = defineStore("tasks", () => {
     });
     if (!res.ok) throw await readApiError(res);
     tasks.value = tasks.value.filter((t) => !taskIds.includes(t.id));
-    total.value -= taskIds.length;
-    for (const task of removed) {
-      statsStore.adjustTaskCount(task.status, -1);
-    }
+    total.value = Math.max(0, total.value - taskIds.length);
+    await statsStore.fetchStats();
   }
 
   async function batchRetry(taskIds: string[]) {

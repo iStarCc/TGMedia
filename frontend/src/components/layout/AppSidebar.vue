@@ -12,6 +12,7 @@ const route = useRoute();
 const { theme, cycle } = useTheme();
 const statsStore = useStatsStore();
 const versionStore = useVersionStore();
+const { stats } = storeToRefs(statsStore);
 const { hasUpdate, current, remoteUrl } = storeToRefs(versionStore);
 const baseUrl = import.meta.env.BASE_URL;
 
@@ -25,10 +26,7 @@ const navItems = [
 
 const currentPath = computed(() => route.path);
 
-const activeTaskCount = computed(() => {
-  const { downloading, pending } = statsStore.stats;
-  return downloading + pending;
-});
+const activeTaskCount = computed(() => stats.value.downloading + stats.value.pending);
 
 const themeIcon = computed(() => {
   if (theme.value === "light") return "light_mode";

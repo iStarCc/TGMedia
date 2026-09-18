@@ -157,6 +157,21 @@ function displayToBytes(value: number, unit: 'MB' | 'GB'): number {
   return unit === 'GB' ? value * 1024 * 1024 * 1024 : value * 1024 * 1024;
 }
 
+function formatChannelExtensionsLabel(raw: string): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    const exts = parsed
+      .map((ext) => String(ext).trim().toLowerCase().replace(/^\./, ""))
+      .filter(Boolean);
+    if (exts.length === 0) return "全部格式";
+    return exts.map((ext) => `.${ext}`).join(", ");
+  } catch {
+    return null;
+  }
+}
+
 function openConfig(channel: Channel) {
   configChannel.value = channel;
   cfgFilterType.value = channel.filter_type;
@@ -687,8 +702,11 @@ onUnmounted(cleanupSearchObserver);
           <span v-if="channel.max_file_size > 0" class="rounded bg-surface px-1.5 py-0.5">
             &le; {{ statsStore.formatBytes(channel.max_file_size) }}
           </span>
-          <span v-if="channel.allowed_extensions" class="rounded bg-surface px-1.5 py-0.5">
-            自定义格式
+          <span
+            v-if="formatChannelExtensionsLabel(channel.allowed_extensions)"
+            class="rounded bg-surface px-1.5 py-0.5 font-mono"
+          >
+            {{ formatChannelExtensionsLabel(channel.allowed_extensions) }}
           </span>
         </div>
 

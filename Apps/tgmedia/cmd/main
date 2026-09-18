@@ -8,21 +8,52 @@ export PATH=/var/apps/python312/target/bin:$PATH
 
 DATA_DIR="${TRIM_DATA_SHARE_PATHS%%:*}"
 VENV_DIR="${TRIM_PKGVAR}/venv"
-
-CMD="python3 -m uvicorn app.main:app --uds ${SOCK_FILE} --log-level info"
+VENV_PYTHON="${VENV_DIR}/bin/python3"
+VENV_PIP="${VENV_DIR}/bin/pip"
 
 log_msg() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}"
 }
 
 ensure_venv() {
-    if [ ! -d "${VENV_DIR}" ]; then
-        log_msg "Creating virtual environment..."
-        python3 -m venv "${VENV_DIR}" >> "${LOG_FILE}" 2>&1
-        source "${VENV_DIR}/bin/activate"
-        pip install -r "${TRIM_APPDEST}/server/requirements.txt" --quiet >> "${LOG_FILE}" 2>&1
-        deactivate
+    if [ -d "${VENV_DIR}" ] && [ -x "${VENV_PYTHON}" ]; then
+        return 0
     fi
+
+    log_msg "Creating virtual environment..."
+    if ! python3 -m venv "${VENV_DIR}" >> "${LOG_FILE}" 2>&1; then
+        log_msg "ERROR: failed to create virtual environment"
+        return 1
+    fi
+
+    log_msg "Installing Python dependencies (first start may take several minutes)..."
+    if ! "${VENV_PIP}" install -r "${TRIM_APPDEST}/server/requirements.txt" >> "${LOG_FILE}" 2>&1; then
+        log_msg "ERROR: pip install failed"
+        return 1
+    fi
+
+    log_msg "Dependencies installed"
+    return 0
+}
+
+wait_for_socket() {
+    local count=0
+    while [ ! -S "${SOCK_FILE}" ] && [ "${count}" -lt 60 ]; do
+        if ! status_check; then
+            log_msg "ERROR: process exited before socket was ready"
+            return 1
+        fi
+        sleep 1
+        count=$((count + 1))
+    done
+
+    if [ ! -S "${SOCK_FILE}" ]; then
+        log_msg "ERROR: socket not created after 60s"
+        return 1
+    fi
+
+    log_msg "Socket ready at ${SOCK_FILE}"
+    return 0
 }
 
 start_process() {
@@ -30,10 +61,14 @@ start_process() {
         return 0
     fi
 
-    ensure_venv
+    if ! ensure_venv; then
+        echo "Python 依赖安装失败，请查看 ${LOG_FILE}" > "${TRIM_TEMP_LOGFILE}"
+        return 1
+    fi
+
+    rm -f "${SOCK_FILE}"
 
     log_msg "Starting TGMedia..."
-    source "${VENV_DIR}/bin/activate"
 
     export TGMEDIA_DATA_DIR="${DATA_DIR}"
     export TGMEDIA_VAR_DIR="${TRIM_PKGVAR}"
@@ -41,16 +76,22 @@ start_process() {
     export TGMEDIA_SOCK="${SOCK_FILE}"
     export TGMEDIA_ROOT_PATH="/app/tgmedia"
 
-    if [ -f "${TRIM_PKGETC}/tgmedia.conf" ]; then
-        source "${TRIM_PKGETC}/tgmedia.conf"
-    fi
+    cd "${TRIM_APPDEST}/server" || {
+        log_msg "ERROR: server directory not found"
+        echo "应用服务目录不存在" > "${TRIM_TEMP_LOGFILE}"
+        return 1
+    }
 
-    cd "${TRIM_APPDEST}/server"
-    bash -c "${CMD}" >> "${LOG_FILE}" 2>&1 &
+    "${VENV_PYTHON}" -m uvicorn app.main:app --uds "${SOCK_FILE}" --log-level info >> "${LOG_FILE}" 2>&1 &
     printf "%s" "$!" > "${PID_FILE}"
 
-    deactivate
-    log_msg "Started with PID $(cat ${PID_FILE})"
+    if ! wait_for_socket; then
+        echo "服务启动失败，请查看 ${LOG_FILE}" > "${TRIM_TEMP_LOGFILE}"
+        stop_process
+        return 1
+    fi
+
+    log_msg "Started with PID $(cat "${PID_FILE}")"
     return 0
 }
 
@@ -69,7 +110,7 @@ stop_process() {
         kill -TERM "${pid}" >> "${LOG_FILE}" 2>&1
 
         local count=0
-        while check_process "${pid}" && [ $count -lt 15 ]; do
+        while check_process "${pid}" && [ "${count}" -lt 15 ]; do
             sleep 1
             count=$((count + 1))
             log_msg "Waiting for shutdown... (${count}s/15s)"
@@ -99,16 +140,15 @@ status_check() {
         pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
         if check_process "${pid}"; then
             return 0
-        else
-            rm -f "${PID_FILE}"
         fi
+        rm -f "${PID_FILE}"
     fi
     return 1
 }
 
-case $1 in
+case "$1" in
 start)
-    start_process
+    start_process || exit 1
     ;;
 stop)
     stop_process
@@ -121,6 +161,7 @@ status)
     fi
     ;;
 *)
+    echo "Unknown command: $1" > "${TRIM_TEMP_LOGFILE}"
     exit 1
     ;;
 esac

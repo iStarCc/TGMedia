@@ -8,6 +8,7 @@ from pytdbot import types
 from app.database import get_db
 from app.models.task import TaskListResponse, TaskResponse
 from app.services.downloader import download_engine
+from app.services.stats_broadcast import broadcast_task_stats
 from app.services.file_manager import get_media_type
 
 logger = logging.getLogger(__name__)
@@ -131,6 +132,7 @@ async def delete_task(task_id: str, delete_file: bool = False):
     await db.execute("DELETE FROM media_files WHERE task_id=?", (task_id,))
     await db.execute("DELETE FROM tasks WHERE id=?", (task_id,))
     await db.commit()
+    await broadcast_task_stats()
     return {"ok": True}
 
 
@@ -170,6 +172,7 @@ async def batch_delete(req: BatchDeleteRequest):
         await db.execute("DELETE FROM media_files WHERE task_id=?", (tid,))
         await db.execute("DELETE FROM tasks WHERE id=?", (tid,))
     await db.commit()
+    await broadcast_task_stats()
     return {"ok": True, "count": len(req.task_ids)}
 
 
