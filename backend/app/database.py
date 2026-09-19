@@ -84,6 +84,7 @@ _MIGRATIONS = [
     ("channels", "download_by_channel", "INTEGER DEFAULT 0"),
     ("channels", "download_by_media_type", "INTEGER DEFAULT 0"),
     ("channels", "sync_limit", "INTEGER DEFAULT 0"),
+    ("channels", "catchup_history", "INTEGER DEFAULT 0"),
     ("accounts", "api_id", "INTEGER NOT NULL DEFAULT 0"),
     ("accounts", "api_hash", "TEXT NOT NULL DEFAULT ''"),
     ("tasks", "chat_id", "INTEGER DEFAULT 0"),

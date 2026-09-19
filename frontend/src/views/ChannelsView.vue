@@ -62,6 +62,7 @@ const cfgDownloadByChannel = ref(false);
 const cfgDownloadByMediaType = ref(false);
 const cfgSyncLimit = ref(0);
 const cfgSyncUseGlobal = ref(true);
+const cfgCatchupHistory = ref(false);
 const newLink = ref("");
 const selectedAccountId = ref<number | null>(null);
 const adding = ref(false);
@@ -196,6 +197,7 @@ function openConfig(channel: Channel) {
   );
   cfgSyncLimit.value = channel.sync_limit || 0;
   cfgSyncUseGlobal.value = !channel.sync_limit;
+  cfgCatchupHistory.value = !!channel.catchup_history;
 
   if (channel.allowed_extensions) {
     try {
@@ -243,6 +245,7 @@ async function saveConfig() {
         !!globalSettings.value.download_by_media_type,
       ),
       sync_limit: cfgSyncUseGlobal.value ? 0 : cfgSyncLimit.value,
+      catchup_history: cfgCatchupHistory.value,
     } as Partial<Channel>);
   });
   if (ok !== null) showConfigModal.value = false;
@@ -813,7 +816,8 @@ onUnmounted(cleanupSearchObserver);
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
         @click.self="showConfigModal = false"
       >
-        <div class="w-full max-w-md rounded-xl border border-surface-border bg-surface-2 p-6 shadow-xl max-h-[80vh] overflow-y-auto">
+        <div class="w-full max-w-md max-h-[80vh] rounded-xl border border-surface-border bg-surface-2 shadow-xl overflow-hidden flex flex-col">
+          <div class="flex-1 overflow-y-auto p-6 pb-0">
           <h2 class="text-base font-semibold">频道配置</h2>
           <p class="mt-1 text-sm text-text-secondary">{{ configChannel.title }}</p>
 
@@ -993,6 +997,24 @@ onUnmounted(cleanupSearchObserver);
               <p v-else class="text-xs text-text-muted">{{ (globalSettings as Record<string,unknown>).sync_limit || 100 }} 条</p>
             </div>
 
+            <!-- 首次运行补拉历史 -->
+            <div class="flex items-center justify-between rounded-lg border border-surface-border bg-surface px-3 py-2.5">
+              <div>
+                <p class="text-xs font-medium text-text-secondary">首次运行补拉历史</p>
+                <p class="mt-0.5 text-[11px] text-text-muted">开启自动下载时补拉历史文件；关闭则仅从当前时间监控新消息</p>
+              </div>
+              <button
+                class="relative h-5 w-9 shrink-0 rounded-full transition-colors cursor-pointer"
+                :class="cfgCatchupHistory ? 'bg-primary' : 'bg-surface-border'"
+                @click="cfgCatchupHistory = !cfgCatchupHistory"
+              >
+                <span
+                  class="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform"
+                  :class="cfgCatchupHistory ? 'translate-x-4' : ''"
+                />
+              </button>
+            </div>
+
             <!-- 按频道创建子目录 -->
             <div class="flex items-center justify-between rounded-lg border border-surface-border bg-surface px-3 py-2.5">
               <div>
@@ -1029,8 +1051,9 @@ onUnmounted(cleanupSearchObserver);
               </button>
             </div>
           </div>
+          </div>
 
-          <div class="mt-5 flex justify-end gap-2">
+          <div class="shrink-0 p-6 flex justify-end gap-2">
             <button
               class="rounded-lg px-3 py-1.5 text-sm text-text-secondary hover:bg-surface cursor-pointer transition-colors"
               @click="showConfigModal = false"

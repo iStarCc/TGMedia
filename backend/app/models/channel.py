@@ -14,6 +14,7 @@ class ChannelUpdate(BaseModel):
     download_by_channel: int | None = None
     download_by_media_type: int | None = None
     sync_limit: int | None = None
+    catchup_history: bool | None = None
 
 
 class ChannelResponse(BaseModel):
@@ -31,5 +32,6 @@ class ChannelResponse(BaseModel):
     download_by_channel: int = 0
     download_by_media_type: int = 0
     sync_limit: int = 0
+    catchup_history: bool = False
     created_at: str
     updated_at: str

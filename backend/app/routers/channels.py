@@ -135,9 +135,10 @@ async def update_channel(channel_id: int, req: ChannelUpdate):
     should_catchup = False
     if req.auto_download is True:
         row = await db.execute_fetchall(
-            "SELECT auto_download FROM channels WHERE id=?", (channel_id,)
+            "SELECT auto_download, catchup_history FROM channels WHERE id=?",
+            (channel_id,),
         )
-        if row and not row[0]["auto_download"]:
+        if row and not row[0]["auto_download"] and row[0]["catchup_history"]:
             should_catchup = True
 
     updates = []
@@ -161,7 +162,7 @@ async def update_channel(channel_id: int, req: ChannelUpdate):
 
 
 async def _catchup_download(channel_id: int):
-    """开启自动下载时，补下载符合条件的历史消息"""
+    """开启自动下载且启用补拉历史时，补下载符合条件的历史消息"""
     from app.services.downloader import download_engine
 
     try:

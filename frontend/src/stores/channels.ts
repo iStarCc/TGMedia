@@ -18,6 +18,7 @@ export interface Channel {
   download_by_channel: number;
   download_by_media_type: number;
   sync_limit: number;
+  catchup_history: boolean;
   created_at: string;
   updated_at: string;
   account_label?: string;

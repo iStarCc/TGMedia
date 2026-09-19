@@ -1,8 +1,16 @@
 {
-  "version": "1.0.4",
+  "version": "1.0.5",
   "repository": "iStarCc/TGMedia",
   "branch": "main",
   "changelog": [
+    {
+      "version": "1.0.5",
+      "date": "2026-09-19",
+      "items": [
+        { "type": "新功能", "text": "频道配置新增「首次运行补拉历史」开关，默认关闭时开启自动下载仅监控新消息" },
+        { "type": "修复", "text": "修复频道配置弹窗右侧圆角被滚动条遮挡的问题" }
+      ]
+    },
     {
       "version": "1.0.4",
       "date": "2026-09-18",
